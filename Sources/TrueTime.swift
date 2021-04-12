@@ -109,16 +109,16 @@ extension TrueTimeClient {
     @objc public func fetchFirstIfNeeded(success: @escaping (ReferenceTime) -> Void,
                                          failure: ((NSError) -> Void)?,
                                          onQueue queue: DispatchQueue) {
-        fetchIfNeeded(queue: queue, first: { result in
-            self.mapBridgedResult(result, success: success, failure: failure)
+        fetchIfNeeded(queue: queue, first: {[weak self] result in
+            self?.mapBridgedResult(result, success: success, failure: failure)
         })
     }
 
     @objc public func fetchIfNeeded(success: @escaping (ReferenceTime) -> Void,
                                     failure: ((NSError) -> Void)?,
                                     onQueue queue: DispatchQueue) {
-        fetchIfNeeded(queue: queue) { result in
-            self.mapBridgedResult(result, success: success, failure: failure)
+        fetchIfNeeded(queue: queue) {[weak self] result in
+            self?.mapBridgedResult(result, success: success, failure: failure)
         }
     }
 

@@ -23,45 +23,54 @@ final class NTPClient {
 
     func start(pool: [String], port: Int) {
         precondition(!pool.isEmpty, "Must include at least one pool URL")
-        queue.async {
-            precondition(self.reachability.callback == nil, "Already started")
-            self.pool = pool
-            self.port = port
-            self.reachability.callbackQueue = self.queue
-            self.reachability.callback = self.updateReachability
-            self.reachability.startMonitoring()
-            self.startTimer()
+        queue.async {[weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            precondition(strongSelf.reachability.callback == nil, "Already started")
+            strongSelf.pool = pool
+            strongSelf.port = port
+            strongSelf.reachability.callbackQueue = strongSelf.queue
+            strongSelf.reachability.callback = strongSelf.updateReachability
+            strongSelf.reachability.startMonitoring()
+            strongSelf.startTimer()
         }
     }
 
     func pause() {
-        queue.async {
-            self.cancelTimer()
-            self.reachability.stopMonitoring()
-            self.reachability.callback = nil
-            self.stopQueue()
+        queue.async {[weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            strongSelf.cancelTimer()
+            strongSelf.reachability.stopMonitoring()
+            strongSelf.reachability.callback = nil
+            strongSelf.stopQueue()
         }
     }
 
     func fetchIfNeeded(queue callbackQueue: DispatchQueue,
                        first: ReferenceTimeCallback?,
                        completion: ReferenceTimeCallback?) {
-        queue.async {
-            precondition(self.reachability.callback != nil,
+        queue.async {[weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            precondition(strongSelf.reachability.callback != nil,
                          "Must start client before retrieving time")
-            if let time = self.referenceTime {
+            if let time = strongSelf.referenceTime {
                 callbackQueue.async { first?(.success(time)) }
             } else if let first = first {
-                self.startCallbacks.append((callbackQueue, first))
+                strongSelf.startCallbacks.append((callbackQueue, first))
             }
 
-            if let time = self.referenceTime, self.finished {
+            if let time = strongSelf.referenceTime, strongSelf.finished {
                 callbackQueue.async { completion?(.success(time)) }
             } else {
                 if let completion = completion {
-                    self.completionCallbacks.append((callbackQueue, completion))
+                    strongSelf.completionCallbacks.append((callbackQueue, completion))
                 }
-                self.updateReachability(status: self.reachability.status ?? .notReachable)
+                strongSelf.updateReachability(status: strongSelf.reachability.status ?? .notReachable)
             }
         }
     }

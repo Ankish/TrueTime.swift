@@ -74,47 +74,54 @@ final class HostResolver {
     }
 
     func resolve() {
-        lockQueue.async {
-            guard self.networkHost == nil else { return }
-            self.resolved = false
-            self.networkHost = CFHostCreateWithName(nil, self.host as CFString).takeRetainedValue()
+        lockQueue.async {[weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            
+            guard strongSelf.networkHost == nil else { return }
+            strongSelf.resolved = false
+            strongSelf.networkHost = CFHostCreateWithName(nil, strongSelf.host as CFString).takeRetainedValue()
             var ctx = CFHostClientContext(
                 version: 0,
-                info: UnsafeMutableRawPointer(Unmanaged.passRetained(self).toOpaque()),
+                info: UnsafeMutableRawPointer(Unmanaged.passRetained(strongSelf).toOpaque()),
                 retain: nil,
                 release: nil,
                 copyDescription: nil
             )
-            self.callbackPending = true
+            strongSelf.callbackPending = true
 
-            if let networkHost = self.networkHost {
-                CFHostSetClient(networkHost, self.hostCallback, &ctx)
+            if let networkHost = strongSelf.networkHost {
+                CFHostSetClient(networkHost, strongSelf.hostCallback, &ctx)
                 CFHostScheduleWithRunLoop(networkHost,
                                           CFRunLoopGetMain(),
                                           CFRunLoopMode.commonModes.rawValue)
 
                 var err: CFStreamError = CFStreamError()
                 if !CFHostStartInfoResolution(networkHost, .addresses, &err) {
-                    self.complete(.failure(NSError(trueTimeError: .cannotFindHost)))
+                    strongSelf.complete(.failure(NSError(trueTimeError: .cannotFindHost)))
                 } else {
-                    self.startTimer()
+                    strongSelf.startTimer()
                 }
             }
         }
     }
 
     func stop(waitUntilFinished wait: Bool = false) {
-        let work = {
-            self.cancelTimer()
-            if let networkHost = self.networkHost {
+        let work = { [weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            strongSelf.cancelTimer()
+            if let networkHost = strongSelf.networkHost {
                 CFHostCancelInfoResolution(networkHost, .addresses)
                 CFHostSetClient(networkHost, nil, nil)
                 CFHostUnscheduleFromRunLoop(networkHost, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
-                self.networkHost = nil
+                strongSelf.networkHost = nil
             }
-            if self.callbackPending {
-                Unmanaged.passUnretained(self).release()
-                self.callbackPending = false
+            if strongSelf.callbackPending {
+                Unmanaged.passUnretained(strongSelf).release()
+                strongSelf.callbackPending = false
             }
         }
 

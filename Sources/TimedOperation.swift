@@ -23,10 +23,13 @@ extension TimedOperation {
         cancelTimer()
         timer = DispatchSource.makeTimerSource(flags: [], queue: timerQueue)
         timer?.schedule(deadline: .now() + timeout)
-        timer?.setEventHandler {
-            guard self.started else { return }
-            self.debugLog("Got timeout for \(self)")
-            self.timeoutError(NSError(trueTimeError: .timedOut))
+        timer?.setEventHandler {[weak self] in
+            guard strongSelf = self else {
+                return
+            }
+            guard strongSelf.started else { return }
+            strongSelf.debugLog("Got timeout for \(self)")
+            strongSelf.timeoutError(NSError(trueTimeError: .timedOut))
         }
         timer?.resume()
     }
