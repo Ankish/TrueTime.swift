@@ -24,7 +24,7 @@ extension TimedOperation {
         timer = DispatchSource.makeTimerSource(flags: [], queue: timerQueue)
         timer?.schedule(deadline: .now() + timeout)
         timer?.setEventHandler {[weak self] in
-            guard strongSelf = self else {
+            guard let strongSelf = self else {
                 return
             }
             guard strongSelf.started else { return }
